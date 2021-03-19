@@ -1,0 +1,8 @@
+domain: vitechteam.com
+multigroup: true
+repo: github.com/vitech-team/sdlcctl
+resources:
+- group: largetest
+  kind: LargeTestExecution
+  version: v1beta1
+version: "2"

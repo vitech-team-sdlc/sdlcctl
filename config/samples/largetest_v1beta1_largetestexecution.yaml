@@ -1,0 +1,7 @@
+apiVersion: largetest.vitechteam.com/v1beta1
+kind: LargeTestExecution
+metadata:
+  name: largetestexecution-sample
+spec:
+  # Add fields here
+  foo: bar
