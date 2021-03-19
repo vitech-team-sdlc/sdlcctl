@@ -20,23 +20,29 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // LargeTestExecutionSpec defines the desired state of LargeTestExecution
 type LargeTestExecutionSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of LargeTestExecution. Edit LargeTestExecution_types.go to remove/update
-	Foo  string `json:"foo,omitempty"`
-	Foo2 string `json:"foo2,omitempty"`
+	Image       string       `json:"image,omitempty"`
+	Result      string       `json:"result,omitempty"`
+	Environment string       `json:"environment,omitempty"`
+	Report      string       `json:"report,omitempty"`
+	Time        string       `json:"time,omitempty"`
+	Topology    []AppVersion `json:"topology,omitempty"`
 }
 
-// LargeTestExecutionStatus defines the observed state of LargeTestExecution
-type LargeTestExecutionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+type State string
+
+const (
+	StateAdded   State = "added"
+	StateSame    State = "same"
+	StateRemoved State = "removed"
+	StateUpdated State = "updated"
+)
+
+type AppVersion struct {
+	Name    string `json:"name,omitempty"`
+	Version string `json:"version,omitempty"`
+	State   State  `json:"state,omitempty"`
 }
 
 // +kubebuilder:object:root=true
@@ -47,8 +53,7 @@ type LargeTestExecution struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   LargeTestExecutionSpec   `json:"spec,omitempty"`
-	Status LargeTestExecutionStatus `json:"status,omitempty"`
+	Spec LargeTestExecutionSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

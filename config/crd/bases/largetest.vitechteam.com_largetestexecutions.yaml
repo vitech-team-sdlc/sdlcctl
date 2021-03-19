@@ -34,15 +34,27 @@ spec:
         spec:
           description: LargeTestExecutionSpec defines the desired state of LargeTestExecution
           properties:
-            foo:
-              description: Foo is an example field of LargeTestExecution. Edit LargeTestExecution_types.go
-                to remove/update
+            environment:
               type: string
-            foo2:
+            image:
               type: string
-          type: object
-        status:
-          description: LargeTestExecutionStatus defines the observed state of LargeTestExecution
+            report:
+              type: string
+            result:
+              type: string
+            time:
+              type: string
+            topology:
+              items:
+                properties:
+                  name:
+                    type: string
+                  state:
+                    type: string
+                  version:
+                    type: string
+                type: object
+              type: array
           type: object
       type: object
   version: v1beta1
