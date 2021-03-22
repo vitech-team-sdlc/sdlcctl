@@ -20,7 +20,7 @@ checksum:
 dockers:
   - dockerfile: Dockerfile
     image_templates:
-      - "ghcr.io/vitech-team/{{.ProjectName}}:{{ .Tag }}"
+      - "docker.pkg.github.com/vitech-team/{{.ProjectName}}:{{ .Tag }}"
 
 snapshot:
   name_template: "{{ .Tag }}-next"
