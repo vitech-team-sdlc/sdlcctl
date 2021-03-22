@@ -20,7 +20,15 @@ checksum:
 dockers:
   - dockerfile: Dockerfile
     image_templates:
-      - "docker.pkg.github.com/vitech-team/{{.ProjectName}}/{{.ProjectName}}:{{ .Tag }}"
+      - "ghcr.io/vitech-team/{{.ProjectName}}:{{ .Tag }}"
+    use_buildx: true
+    build_flag_templates:
+      - "--pull"
+      - "--label=org.opencontainers.image.created={{.Date}}"
+      - "--label=org.opencontainers.image.name={{.ProjectName}}"
+      - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+      - "--label=org.opencontainers.image.version={{.Version}}"
+      - "--label=org.opencontainers.image.source={{.GitURL}}"
 
 snapshot:
   name_template: "{{ .Tag }}-next"
