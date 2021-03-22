@@ -16,6 +16,12 @@ archives:
       linux: Linux
 checksum:
   name_template: 'checksums.txt'
+
+dockers:
+  dockerfile: Dockerfile
+  image_templates:
+    - "vitech-team/{{.ProjectName}}:{{ .Tag }}"
+
 snapshot:
   name_template: "{{ .Tag }}-next"
 changelog:
