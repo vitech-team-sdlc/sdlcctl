@@ -43,7 +43,7 @@ deploy: manifests
 
 # Generate manifests e.g. CRD, RBAC etc.
 client:
-	${GOPATH}/src/k8s.io/code-generator/generate-groups.sh client "${PROJECT_MODULE}/client"  "${PROJECT_MODULE}/apis"  "${API}"
+	${GOPATH}/src/k8s.io/code-generator/generate-groups.sh client ${PROJECT_MODULE}/client  ${PROJECT_MODULE}/apis  ${API}
 
 manifests: controller-gen
 	$(CONTROLLER_GEN) $(CRD_OPTIONS) rbac:roleName=manager-role webhook paths="./..." output:crd:artifacts:config=config/crd/bases
