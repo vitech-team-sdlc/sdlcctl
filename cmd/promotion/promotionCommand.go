@@ -60,24 +60,23 @@ func init() {
 
 func (opt *PromotionOptions) Validate() error {
 
-	optionsTopology := topology.OptionsTopology{opt.Options}
+	optionsTopology := topology.OptionsTopology{Options: opt.Options}
 
 	environments, err := optionsTopology.GetComparedTopology()
-	if err != nil {
-		panic(err)
-	}
-	filteredEnvs := findEnvWithPromotion(environments)
-	testedEnvs := collectTestExecutions(filteredEnvs, opt)
-	for _, env := range testedEnvs {
-		if !env.Tested {
-			log.WithField("env", env.Name).Info("tested")
-		} else {
-			log.WithField("env", env.Name).Error("no large test executions found")
-			return err
-		}
-	}
 
-	log.Info("all changes are tested")
+	if err != nil {
+		filteredEnvs := findEnvWithPromotion(environments)
+		testedEnvs := collectTestExecutions(filteredEnvs, opt)
+		for _, env := range testedEnvs {
+			if !env.Tested {
+				log.WithField("env", env.Name).Info("tested")
+			} else {
+				log.WithField("env", env.Name).Error("no large test executions found")
+				return err
+			}
+		}
+		log.Info("all changes are tested")
+	}
 
 	return err
 }

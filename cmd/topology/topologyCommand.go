@@ -11,6 +11,7 @@ import (
 	"github.com/jenkins-x/jx-helpers/pkg/yaml2s"
 	"github.com/olekukonko/tablewriter"
 	"github.com/roboll/helmfile/pkg/state"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	sdlc "github.com/vitech-team/sdlcctl/apis/largetest/v1beta1"
 	sdlcUtils "github.com/vitech-team/sdlcctl/cmd/utils"
@@ -18,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"sort"
+	"strings"
 )
 
 type OptionsTopology struct {
@@ -26,6 +28,15 @@ type OptionsTopology struct {
 
 var commandRunner cmdrunner.CommandRunner
 var gitClient gitclient.Interface
+
+var log = logrus.New()
+
+func init() {
+	log.SetFormatter(&logrus.TextFormatter{
+		DisableColors: false,
+		FullTimestamp: true,
+	})
+}
 
 func NewTopologyCmd(opts *sdlcUtils.Options) (*cobra.Command, *OptionsTopology) {
 	options := &OptionsTopology{opts}
@@ -57,37 +68,58 @@ func (opt *OptionsTopology) Run() error {
 
 	for _, env := range comparedEnvironments {
 		envName := env.Name
-		changed := "Nope"
+
 		if env.Changed {
-			changed = "Yes"
-		}
-		if env.Changed {
-			for _, version := range env.Topology {
-				cols := []string{
-					envName, changed, version.Name, version.Version, fmt.Sprintf("%s", version.State),
-				}
-				data = append(data, cols)
+			sortByName(env.Topology)
+			sortByName(env.PreviousTopology)
+			cols := []string{
+				envName,
+				fmt.Sprintf("%t", env.Changed),
+				strings.Join(getNames(env.Topology), ", "),
+				strings.Join(getNames(env.PreviousTopology), ", "),
 			}
+			data = append(data, cols)
 		}
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Env", "Changed", "App", "Version", "State"})
-	table.SetAutoMergeCells(true)
-	table.SetRowLine(true)
+	table.SetHeader([]string{"Env", "Env Changed", "Now", "Was"})
+
 	table.AppendBulk(data)
+	table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
+	table.SetCenterSeparator("|")
 	table.Render()
 
 	return err
+}
+
+func getNames(apps []sdlc.AppVersion) []string {
+	var names []string
+	for _, app := range apps {
+		names = append(names, fmt.Sprintf("%s:%s", app.Name, app.Version))
+	}
+	return names
+}
+
+func sortByName(apps []sdlc.AppVersion) {
+	sort.Slice(apps, func(i, j int) bool {
+		switch strings.Compare(apps[i].Name, apps[i].Name) {
+		case -1:
+			return true
+		case 1:
+			return false
+		}
+		return apps[i].Name > apps[j].Name
+	})
 }
 
 func (opt *OptionsTopology) GetComparedTopology() ([]sdlcUtils.Environment, error) {
 	masterRepoTmpDir, err := ioutil.TempDir("", "")
 
 	cloneDir, err := gitclient.CloneToDir(GitClient(), opt.GitUrl, masterRepoTmpDir)
-	fmt.Println("Cloning " + opt.GitUrl + " into master: " + masterRepoTmpDir)
 
-	fmt.Println("Checking topology")
+	log.WithField("git", opt.GitUrl).WithField("folder", masterRepoTmpDir).Debug("cloning base")
+	log.Debug("checking topology...")
 
 	currentHelmState := opt.GetEnvironmentsFromHelmFile(opt.Helmfile, opt.HelmfileDir)
 	masterHelmState := opt.GetEnvironmentsFromHelmFile(opt.Helmfile, cloneDir)
@@ -112,6 +144,7 @@ func compare(currentState []sdlcUtils.Environment, newState []sdlcUtils.Environm
 					}
 					appResults = append(appResults, appVersion)
 				}
+				currentEnvState.PreviousTopology = newEnvState.Topology
 			}
 		}
 		currentEnvState.Topology = appResults

@@ -6,9 +6,10 @@ import (
 )
 
 type Environment struct {
-	Topology []largetestv1beta1.AppVersion `json:"topology"`
-	Changed  bool                          `json:"changed"`
-	Tested   bool                          `json:"tested"`
+	PreviousTopology []largetestv1beta1.AppVersion `json:"previousTopology"`
+	Topology         []largetestv1beta1.AppVersion `json:"topology"`
+	Changed          bool                          `json:"changed"`
+	Tested           bool                          `json:"tested"`
 	jxV1.Environment
 }
 
