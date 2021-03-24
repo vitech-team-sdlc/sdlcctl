@@ -2,6 +2,7 @@ package promotion
 
 import (
 	"context"
+	"fmt"
 	v1 "github.com/jenkins-x/jx-api/v4/pkg/apis/jenkins.io/v1"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -69,7 +70,7 @@ func (opt *PromotionOptions) Validate() error {
 				log.WithField("env", env.Name).Info("tested")
 			} else {
 				log.WithField("env", env.Name).Error("no large test executions found")
-				return err
+				return fmt.Errorf("no large test executions found for environment %s namespace %s", env.Name, env.Spec.Namespace)
 			}
 		}
 		log.Info("all changes are tested")
