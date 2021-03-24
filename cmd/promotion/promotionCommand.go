@@ -24,11 +24,8 @@ func NewPromotionCmd(rootOpts *utils.Options) (*cobra.Command, *PromotionOptions
 		Use:     "promotion",
 		Short:   "prom",
 		Example: "check if ",
-		Run: func(cmd *cobra.Command, args []string) {
-			err := cmd.Help()
-			if err != nil {
-				panic(err.Error())
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
 		},
 	}
 
@@ -64,11 +61,11 @@ func (opt *PromotionOptions) Validate() error {
 
 	environments, err := optionsTopology.GetComparedTopology()
 
-	if err != nil {
+	if err == nil {
 		filteredEnvs := findEnvWithPromotion(environments)
 		testedEnvs := collectTestExecutions(filteredEnvs, opt)
 		for _, env := range testedEnvs {
-			if !env.Tested {
+			if env.Tested {
 				log.WithField("env", env.Name).Info("tested")
 			} else {
 				log.WithField("env", env.Name).Error("no large test executions found")

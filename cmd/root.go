@@ -12,11 +12,8 @@ func Main() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sdlc",
 		Short: "SDLC utility commands",
-		Run: func(cmd *cobra.Command, args []string) {
-			err := cmd.Help()
-			if err != nil {
-				panic(err.Error())
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
 		},
 	}
 
