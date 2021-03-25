@@ -8,6 +8,22 @@ metadata:
   creationTimestamp: null
   name: largetestexecutions.largetest.vitechteam.com
 spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.environment
+    name: Env
+    type: string
+  - JSONPath: .spec.namespace
+    name: Ns
+    type: string
+  - JSONPath: .spec.report
+    name: Report
+    type: string
+  - JSONPath: .spec.result
+    name: Result
+    type: string
+  - JSONPath: .spec.time
+    name: Time
+    type: string
   group: largetest.vitechteam.com
   names:
     kind: LargeTestExecution
@@ -15,6 +31,7 @@ spec:
     plural: largetestexecutions
     singular: largetestexecution
   scope: Namespaced
+  subresources: {}
   validation:
     openAPIV3Schema:
       description: LargeTestExecution is the Schema for the largetestexecutions API
@@ -37,6 +54,8 @@ spec:
             environment:
               type: string
             image:
+              type: string
+            namespace:
               type: string
             report:
               type: string

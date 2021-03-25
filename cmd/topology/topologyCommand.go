@@ -16,14 +16,26 @@ import (
 	sdlc "github.com/vitech-team/sdlcctl/apis/largetest/v1beta1"
 	sdlcUtils "github.com/vitech-team/sdlcctl/cmd/utils"
 	"io/ioutil"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
 	"sort"
 	"strings"
+	"time"
 )
 
 type OptionsTopology struct {
 	*sdlcUtils.Options
+}
+
+type OptionsTopologyTested struct {
+	Status string
+	Report string
+	Commit string
+	Repo   string
+	Image  string
+	*OptionsTopology
 }
 
 var commandRunner cmdrunner.CommandRunner
@@ -40,24 +52,129 @@ func init() {
 
 func NewTopologyCmd(opts *sdlcUtils.Options) (*cobra.Command, *OptionsTopology) {
 	options := &OptionsTopology{opts}
+	optionTested := &OptionsTopologyTested{OptionsTopology: options}
 
 	command := &cobra.Command{
 		Use:     "topology",
-		Aliases: []string{"matrix"},
-		Short:   "tp",
 		Example: "bla bla bla",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	printCmd := &cobra.Command{
+		Use:     "print",
+		Example: "print current topology VS previous",
 		Run: func(cmd *cobra.Command, args []string) {
-			err := options.Run()
+			err := options.Print()
 			if err != nil {
-				panic(err.Error())
+				log.Error(err.Error())
+				os.Exit(1)
 			}
 		},
 	}
 
+	testedCmd := &cobra.Command{
+		Use:     "tested",
+		Example: "create large test execution for current topology ",
+		Run: func(cmd *cobra.Command, args []string) {
+			err := optionTested.MarkWithLargeTestExec()
+			if err != nil {
+				log.Error(err.Error())
+				os.Exit(1)
+			}
+		},
+	}
+
+	testedCmd.Flags().StringVarP(
+		&optionTested.Status, "status", "", "", "large test status success/failed",
+	)
+	testedCmd.Flags().StringVarP(
+		&optionTested.Report, "report", "", "", "report url or place where it can be found",
+	)
+	testedCmd.Flags().StringVarP(
+		&optionTested.Commit, "commit", "", "", "commit what been tested",
+	)
+	testedCmd.Flags().StringVarP(
+		&optionTested.Repo, "repo", "", "", "repository where version been changed",
+	)
+	testedCmd.Flags().StringVarP(
+		&optionTested.Image, "image", "", "", "large reports produced",
+	)
+
+	testedCmd.MarkFlagRequired("status")
+	testedCmd.MarkFlagRequired("report")
+	testedCmd.MarkFlagRequired("commit")
+	testedCmd.MarkFlagRequired("repo")
+	testedCmd.MarkFlagRequired("image")
+
+	command.AddCommand(printCmd)
+	command.AddCommand(testedCmd)
+
 	return command, options
 }
 
-func (opt *OptionsTopology) Run() error {
+func (opt *OptionsTopologyTested) MarkWithLargeTestExec() error {
+	currentHelmState := opt.GetEnvironmentsFromHelmFile(opt.Helmfile, opt.HelmfileDir)
+	for _, env := range currentHelmState {
+		opt.KubeClient, opt.JxClient, opt.LtClient = sdlcUtils.NewLazyClients(opt.KubeClient, opt.JxClient, opt.LtClient)
+		err := createIfNotExists(opt, env)
+		if err != nil {
+			return err
+		}
+
+		lte := &sdlc.LargeTestExecution{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:    env.Spec.Namespace,
+				GenerateName: fmt.Sprintf("%s-%s", env.Spec.Namespace, opt.Commit),
+			},
+			Spec: sdlc.LargeTestExecutionSpec{
+				Image:       opt.Image,
+				Result:      opt.Status,
+				Environment: env.Name,
+				Namespace:   env.Spec.Namespace,
+				Report:      opt.Report,
+				Time:        time.Now().String(),
+				Topology:    env.Topology,
+			},
+		}
+		created, err := opt.LtClient.LargetestV1beta1().LargeTestExecutions(env.Spec.Namespace).Create(
+			context.TODO(), lte, metav1.CreateOptions{},
+		)
+		if err != nil {
+			return err
+		}
+		log.WithField("name", created.Name).
+			WithField("ns", env.Spec.Namespace).
+			Info("new LargeTestExecution created")
+	}
+
+	return nil
+}
+
+func createIfNotExists(opt *OptionsTopologyTested, env sdlcUtils.Environment) error {
+	var _, err = opt.KubeClient.CoreV1().Namespaces().Get(context.TODO(), env.Spec.Namespace, metav1.GetOptions{})
+	if err != nil {
+		if err.(*errors.StatusError).ErrStatus.Reason == metav1.StatusReasonNotFound {
+			_, err = opt.KubeClient.CoreV1().Namespaces().Create(
+				context.TODO(),
+				&v1.Namespace{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: env.Spec.Namespace,
+					},
+				}, metav1.CreateOptions{},
+			)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	return err
+}
+
+func (opt *OptionsTopology) Print() error {
 
 	comparedEnvironments, err := opt.GetComparedTopology()
 

@@ -25,6 +25,7 @@ type LargeTestExecutionSpec struct {
 	Image       string       `json:"image,omitempty"`
 	Result      string       `json:"result,omitempty"`
 	Environment string       `json:"environment,omitempty"`
+	Namespace   string       `json:"namespace,omitempty"`
 	Report      string       `json:"report,omitempty"`
 	Time        string       `json:"time,omitempty"`
 	Topology    []AppVersion `json:"topology,omitempty"`
@@ -49,6 +50,11 @@ type AppVersion struct {
 // +genclient
 // +k8s:openapi-gen=true
 // LargeTestExecution is the Schema for the largetestexecutions API
+// +kubebuilder:printcolumn:name="Env",type=string,JSONPath=`.spec.environment`
+// +kubebuilder:printcolumn:name="Ns",type=string,JSONPath=`.spec.namespace`
+// +kubebuilder:printcolumn:name="Report",type=string,JSONPath=`.spec.report`
+// +kubebuilder:printcolumn:name="Result",type=string,JSONPath=`.spec.result`
+// +kubebuilder:printcolumn:name="Time",type=string,JSONPath=`.spec.time`
 type LargeTestExecution struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

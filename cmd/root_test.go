@@ -15,7 +15,7 @@ func TestRootCmd(t *testing.T) {
 
 	//o.HelmfileDir = "/Users/serhiykrupka/test-clone"
 	//o.GitUrl = "https://github.com/vitech-team/test-sk-env.git"
-	//err := o.Run()
+	//err := o.Print()
 	err := cmd.Execute()
 	assert.NoError(t, err)
 }
