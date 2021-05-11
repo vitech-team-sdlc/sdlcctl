@@ -41,9 +41,10 @@ const (
 )
 
 type AppVersion struct {
-	Name    string `json:"name,omitempty"`
-	Version string `json:"version,omitempty"`
-	State   State  `json:"state,omitempty"`
+	Name     string `json:"name,omitempty"`
+	Version  string `json:"version,omitempty"`
+	State    State  `json:"state,omitempty"`
+	Revision string `json:"revision"`
 }
 
 // +kubebuilder:object:root=true
