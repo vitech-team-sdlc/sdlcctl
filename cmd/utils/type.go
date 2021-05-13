@@ -13,19 +13,6 @@ type Environment struct {
 	jxV1.Environment
 }
 
-type AppRelease struct {
-	Name            string                 `json:"name,omitempty"`
-	GitUrl          string                 `json:"gitUrl,omitempty"`
-	Version         Version                `json:"version"`
-	PreviousVersion Version                `json:"previousVersion"`
-	State           largetestv1beta1.State `json:"state,omitempty"`
-}
-
-type Version struct {
-	Version  string `json:"version,omitempty"`
-	Revision string `json:"revision"`
-}
-
 func ContainsVersion(version largetestv1beta1.AppVersion, topology []largetestv1beta1.AppVersion) bool {
 	for _, tpVersion := range topology {
 		if version == tpVersion {

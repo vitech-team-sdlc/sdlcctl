@@ -3,6 +3,7 @@
 # It should be run by config/default
 resources:
 - bases/largetest.vitechteam.com_largetestexecutions.yaml
+- bases/topologyrelease.vitechteam.com_topologyrelease.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge: []

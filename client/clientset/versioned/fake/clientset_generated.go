@@ -22,6 +22,8 @@ import (
 	clientset "github.com/vitech-team/sdlcctl/client/clientset/versioned"
 	largetestv1beta1 "github.com/vitech-team/sdlcctl/client/clientset/versioned/typed/largetest/v1beta1"
 	fakelargetestv1beta1 "github.com/vitech-team/sdlcctl/client/clientset/versioned/typed/largetest/v1beta1/fake"
+	topologyreleasev1beta1 "github.com/vitech-team/sdlcctl/client/clientset/versioned/typed/topologyrelease/v1beta1"
+	faketopologyreleasev1beta1 "github.com/vitech-team/sdlcctl/client/clientset/versioned/typed/topologyrelease/v1beta1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -79,4 +81,9 @@ var _ clientset.Interface = &Clientset{}
 // LargetestV1beta1 retrieves the LargetestV1beta1Client
 func (c *Clientset) LargetestV1beta1() largetestv1beta1.LargetestV1beta1Interface {
 	return &fakelargetestv1beta1.FakeLargetestV1beta1{Fake: &c.Fake}
+}
+
+// TopologyreleaseV1beta1 retrieves the TopologyreleaseV1beta1Client
+func (c *Clientset) TopologyreleaseV1beta1() topologyreleasev1beta1.TopologyreleaseV1beta1Interface {
+	return &faketopologyreleasev1beta1.FakeTopologyreleaseV1beta1{Fake: &c.Fake}
 }

@@ -1,0 +1,87 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.5
+  creationTimestamp: null
+  name: topologyreleases.topologyrelease.vitechteam.com
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .spec.environment
+    name: Environment
+    type: string
+  - JSONPath: .metadata.namespace
+    name: Namespace
+    type: string
+  - JSONPath: .spec.version
+    name: Version
+    type: string
+  - JSONPath: .spec.basedOnVersion
+    name: BasedOnVersion
+    type: string
+  - JSONPath: .spec.changelogURL
+    name: ChangelogURL
+    type: string
+  group: topologyrelease.vitechteam.com
+  names:
+    kind: TopologyRelease
+    listKind: TopologyReleaseList
+    plural: topologyreleases
+    singular: topologyrelease
+  scope: Namespaced
+  subresources: {}
+  validation:
+    openAPIV3Schema:
+      description: TopologyRelease is the Schema for the topologyreleases API
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: TopologyReleaseSpec defines the desired state of TopologyRelease
+          properties:
+            environment:
+              type: string
+            version:
+              type: string
+            basedOnVersion:
+              type: string
+            changelogURL:
+              type: string
+            topology:
+              items:
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                  gitURL:
+                    type: string
+                  revision:
+                    type: string
+                type: object
+              type: array
+          type: object
+      type: object
+  version: v1beta1
+  versions:
+  - name: v1beta1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

@@ -110,7 +110,7 @@ func NewTopologyCmd(opts *sdlcUtils.Options) (*cobra.Command, *OptionsTopology) 
 
 	command.AddCommand(printCmd)
 	command.AddCommand(testedCmd)
-	command.AddCommand(makeReleaseNotesCmd(options))
+	command.AddCommand(makeReleaseCmd(options))
 
 	return command, options
 }

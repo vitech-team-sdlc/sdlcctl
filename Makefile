@@ -5,7 +5,7 @@ IMG ?= controller:latest
 CRD_OPTIONS ?= "crd:trivialVersions=true"
 
 PROJECT_MODULE="github.com/vitech-team/sdlcctl"
-API="largetest:v1beta1"
+API="largetest:v1beta1 topologyrelease:v1beta1"
 
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))

@@ -20,6 +20,7 @@ package fake
 
 import (
 	largetestv1beta1 "github.com/vitech-team/sdlcctl/apis/largetest/v1beta1"
+	topologyreleasev1beta1 "github.com/vitech-team/sdlcctl/apis/topologyrelease/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -32,6 +33,7 @@ var codecs = serializer.NewCodecFactory(scheme)
 
 var localSchemeBuilder = runtime.SchemeBuilder{
 	largetestv1beta1.AddToScheme,
+	topologyreleasev1beta1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

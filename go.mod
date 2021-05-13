@@ -4,11 +4,12 @@ go 1.15
 
 require (
 	github.com/jenkins-x-plugins/jx-changelog v0.0.42
+	github.com/jenkins-x-plugins/jx-release-version/v2 v2.4.2
+	github.com/jenkins-x/go-scm v1.6.18
 	github.com/jenkins-x/jx-api/v4 v4.0.28
 	github.com/jenkins-x/jx-gitops v0.2.29
 	github.com/jenkins-x/jx-helpers v1.0.88
 	github.com/jenkins-x/jx-helpers/v3 v3.0.104
-	github.com/jenkins-x/go-scm v1.6.18
 	github.com/olekukonko/tablewriter v0.0.2
 	github.com/roboll/helmfile v0.138.4
 	github.com/sirupsen/logrus v1.7.0
