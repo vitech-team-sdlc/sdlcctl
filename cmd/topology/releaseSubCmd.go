@@ -3,15 +3,16 @@ package topology
 import (
 	"context"
 	"fmt"
+	"github.com/Masterminds/semver/v3"
 	"github.com/jenkins-x-plugins/jx-changelog/pkg/cmd/create"
-	jxAv "github.com/jenkins-x-plugins/jx-release-version/v2/pkg/strategy/auto"
-	"github.com/jenkins-x-plugins/jx-release-version/v2/pkg/strategy/fromtag"
+	"github.com/jenkins-x-plugins/jx-release-version/v2/pkg/strategy/auto"
 	"github.com/jenkins-x-plugins/jx-release-version/v2/pkg/strategy/semantic"
 	jxTag "github.com/jenkins-x-plugins/jx-release-version/v2/pkg/tag"
 	"github.com/jenkins-x/go-scm/scm"
 	jxV1 "github.com/jenkins-x/jx-api/v4/pkg/apis/jenkins.io/v1"
 	"github.com/jenkins-x/jx-helpers/v3/pkg/options"
 	"github.com/jenkins-x/jx-helpers/v3/pkg/scmhelpers"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	sdlc "github.com/vitech-team/sdlcctl/apis/topologyrelease/v1beta1"
 	"io/ioutil"
@@ -20,6 +21,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 )
 
@@ -58,15 +61,6 @@ func makeReleaseCmd(options *OptionsTopology) *cobra.Command {
 	}
 
 	releaseCmd.Flags().StringVarP(
-		&opt.Environment,
-		"environment",
-		"",
-		"",
-		"environment to be released",
-	)
-	releaseCmd.MarkFlagRequired("environment")
-
-	releaseCmd.Flags().StringVarP(
 		&opt.Changelog,
 		"changelog",
 		"",
@@ -78,7 +72,11 @@ func makeReleaseCmd(options *OptionsTopology) *cobra.Command {
 		&opt.Exclude,
 		"exclude",
 		"",
-		[]string{"jx-verify"},
+		[]string{
+			"jx-verify",
+			"jx-preview",
+			"lighthouse",
+		},
 		"comma-separated list of applications to exclude (e.g. jenkins-x utility apps)",
 	)
 
@@ -88,105 +86,95 @@ func makeReleaseCmd(options *OptionsTopology) *cobra.Command {
 func (opt *OptionsTopologyRelease) Run() {
 	envs := opt.GetEnvironments()
 
-	env := findEnvironmentByName(envs.Items, opt.Environment)
+	var prevEnv *jxV1.Environment = nil
+	for _, env := range envs.Items {
+		envLog := log.
+			WithField("environment", env.Name).
+			WithField("namespace", env.Spec.Namespace)
+		if env.Spec.Kind == jxV1.EnvironmentKindTypePermanent {
+			version, prevVersion, prevEnvVersion := opt.DetermineChanges(&env, prevEnv)
 
-	versionTag, prevVersionTag := opt.VersionTags()
+			envLog = envLog.WithField("version", version)
 
-	log.WithField("env", env.ObjectMeta.Name).
-		WithField("ns", env.Spec.Namespace).
-		WithField("version", versionTag).
-		WithField("basedOnVersion", prevVersionTag).
-		Info("Preparing TopologyRelease")
+			envLog.
+				WithField("prevVersion", prevVersion).
+				WithField("prevEnvVersion", prevEnvVersion).
+				Info("Preparing TopologyRelease")
 
-	topologyRelease := opt.TopologyRelease(&env, versionTag, prevVersionTag)
+			topologyRelease := opt.TopologyRelease(&env, version, prevVersion, prevEnvVersion, envLog)
 
-	switch opt.Changelog {
-	case "aggregated":
-		log.WithField("environment", env.ObjectMeta.Name).
-			Info("Generating Aggregated release notes")
-		changelogUrl := opt.AggregatedChangelog(&env, versionTag, prevVersionTag)
-		topologyRelease.Spec.ChangelogURL = changelogUrl
-		_, err := opt.LtClient.
-			TopologyreleaseV1beta1().
-			TopologyReleases(env.Spec.Namespace).
-			Update(context.TODO(), topologyRelease, k8sV1.UpdateOptions{})
-		if err != nil {
-			panic(err.Error())
+			if topologyRelease != nil {
+				envLog.Info("Creating release tag")
+				opt.TagVersion(version)
+
+				switch opt.Changelog {
+				case "aggregated":
+					envLog.Info("Generating Aggregated release notes")
+					changelogUrl := opt.AggregatedChangelog(&env, version, prevVersion, envLog)
+					topologyRelease.Spec.ChangelogURL = changelogUrl
+					opt.UpdateTopologyRelease(&env, topologyRelease)
+				default:
+					envLog.Info("Release notes won't be generated")
+				}
+			}
+
+			prevEnv = env.DeepCopy()
+		} else {
+			envLog.Info("Skipping release creation")
 		}
-	default:
-		log.Info("Release notes won't be generated")
 	}
 }
 
-func (opt *OptionsTopologyRelease) TopologyRelease(
-	env *jxV1.Environment,
-	versionTag string,
-	prevVersionTag string,
-) *sdlc.TopologyRelease {
+func (opt *OptionsTopologyRelease) TopologyRelease(env *jxV1.Environment, version *semver.Version, prevVersion *semver.Version, prevEnvVersion *semver.Version, envLog *logrus.Entry) *sdlc.TopologyRelease {
 	appVersions := opt.LoadAppReleases(env)
 
-	topologyRelease := &sdlc.TopologyRelease{
-		ObjectMeta: k8sV1.ObjectMeta{
-			Namespace: env.Spec.Namespace,
-			Name:      makeTopologyName(env, versionTag),
-		},
-		Spec: sdlc.TopologyReleaseSpec{
-			Environment:    env.Name,
-			Version:        versionTag,
-			BasedOnVersion: prevVersionTag,
-			Topology:       appVersions,
-		},
+	prevAppVersions := opt.GetTopologyRelease(env, prevVersion).Spec.Topology
+	sortAppVersionsByName(prevAppVersions)
+
+	var topologyRelease *sdlc.TopologyRelease = nil
+	if !reflect.DeepEqual(prevAppVersions, appVersions) {
+		prevVersionTag := ""
+		if prevVersion != nil {
+			prevVersionTag = prevVersion.Original()
+		}
+		prevEnvVersionTag := ""
+		if prevEnvVersion != nil {
+			prevEnvVersionTag = prevEnvVersion.Original()
+		}
+		topologyRelease = &sdlc.TopologyRelease{
+			ObjectMeta: k8sV1.ObjectMeta{
+				Name:      version.String(),
+				Namespace: env.Spec.Namespace,
+			},
+			Spec: sdlc.TopologyReleaseSpec{
+				Environment:    env.Name,
+				Version:        version.Original(),
+				PrevVersion:    prevVersionTag,
+				PrevEnvVersion: prevEnvVersionTag,
+				Topology:       appVersions,
+			},
+		}
+		topologyRelease = opt.CreateTopologyRelease(env, topologyRelease)
+		envLog.
+			WithField("name", topologyRelease.Name).
+			Info("TopologyRelease created has been created")
+	} else {
+		envLog.Info("TopologyRelease won't be created since none application changed")
 	}
 
-	created, err := opt.LtClient.
-		TopologyreleaseV1beta1().
-		TopologyReleases(env.Spec.Namespace).
-		Create(context.TODO(), topologyRelease, k8sV1.CreateOptions{})
-	if err != nil {
-		panic(err.Error())
-	}
-	log.WithField("name", created.Name).
-		Info("TopologyRelease created has been created")
-
-	return created
+	return topologyRelease
 }
 
-func (opt *OptionsTopologyRelease) VersionTags() (string, string) {
-	strategyOpts := jxAv.Strategy{
-		FromTagStrategy: fromtag.Strategy{
-			Dir:        opt.HelmfileDir,
-			TagPattern: "",
-		},
-		SemanticStrategy: semantic.Strategy{
-			Dir:             opt.HelmfileDir,
-			StripPrerelease: false,
-		},
-	}
-
-	latestVersion, err := strategyOpts.ReadVersion()
-	if err != nil {
-		panic(err.Error())
-	}
-
-	nextVersion, err := strategyOpts.BumpVersion(*latestVersion)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	latestVersionTag := "v" + latestVersion.String()
-	nextVersionTag := "v" + nextVersion.String()
-
+func (opt *OptionsTopologyRelease) TagVersion(version *semver.Version) {
 	tagOpts := jxTag.Tag{
-		FormattedVersion: nextVersionTag,
+		FormattedVersion: version.Original(),
 		Dir:              opt.HelmfileDir,
 		PushTag:          true,
 	}
-	err = tagOpts.TagRemote()
+	err := tagOpts.TagRemote()
 	if err != nil {
 		panic(err.Error())
 	}
-
-	return nextVersionTag, latestVersionTag
 }
 
 func (opt *OptionsTopologyRelease) LoadAppReleases(env *jxV1.Environment) []sdlc.AppVersion {
@@ -230,11 +218,9 @@ func (opt *OptionsTopologyRelease) LoadAppReleases(env *jxV1.Environment) []sdlc
 	return appVersions
 }
 
-func (opt *OptionsTopologyRelease) AggregatedChangelog(
-	env *jxV1.Environment, versionTag string, prevVersionTag string,
-) string {
-	topologyRelease := opt.GetTopologyReleaseByName(env, versionTag)
-	prevTopologyRelease := opt.GetTopologyReleaseByName(env, prevVersionTag)
+func (opt *OptionsTopologyRelease) AggregatedChangelog(env *jxV1.Environment, version *semver.Version, prevVersion *semver.Version, envLog *logrus.Entry) string {
+	topologyRelease := opt.GetTopologyRelease(env, version)
+	prevTopologyRelease := opt.GetTopologyRelease(env, prevVersion)
 
 	appReleases := opt.CombineAppReleases(topologyRelease.Spec.Topology, prevTopologyRelease.Spec.Topology)
 
@@ -253,25 +239,68 @@ func (opt *OptionsTopologyRelease) AggregatedChangelog(
 	}
 
 	if len(strings.Trim(topologyReleaseNotes, " \t\n")) > 0 {
-		return opt.Publish(versionTag, topologyReleaseNotes)
+		return opt.Publish(version, topologyReleaseNotes, envLog)
 	} else {
-		log.Info("Nothing to publish, environment release notes is empty")
+		envLog.Info("Nothing to publish, environment release notes is empty")
 	}
 	return ""
 }
 
-func (opt *OptionsTopologyRelease) GetTopologyReleaseByName(env *jxV1.Environment, prevVersionTag string) *sdlc.TopologyRelease {
-	if prevVersionTag == "v0.0.0" {
+func (opt *OptionsTopologyRelease) GetTopologyRelease(
+	env *jxV1.Environment,
+	version *semver.Version,
+) *sdlc.TopologyRelease {
+	if version == nil {
 		return &sdlc.TopologyRelease{}
 	} else {
-		prevTopologyRelease, err := opt.LtClient.TopologyreleaseV1beta1().
+		topologyRelease, err := opt.LtClient.TopologyreleaseV1beta1().
 			TopologyReleases(env.Spec.Namespace).
-			Get(context.TODO(), makeTopologyName(env, prevVersionTag), k8sV1.GetOptions{})
+			Get(context.TODO(), version.String(), k8sV1.GetOptions{})
 		if err != nil {
 			panic(err.Error())
 		}
-		return prevTopologyRelease
+		return topologyRelease
 	}
+}
+
+func (opt *OptionsTopologyRelease) ListTopologyRelease(
+	env *jxV1.Environment,
+) []sdlc.TopologyRelease {
+	topologyReleaseList, err := opt.LtClient.TopologyreleaseV1beta1().
+		TopologyReleases(env.Spec.Namespace).
+		List(context.TODO(), k8sV1.ListOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	return topologyReleaseList.Items
+}
+
+func (opt *OptionsTopologyRelease) CreateTopologyRelease(
+	env *jxV1.Environment,
+	topologyRelease *sdlc.TopologyRelease,
+) *sdlc.TopologyRelease {
+	created, err := opt.LtClient.
+		TopologyreleaseV1beta1().
+		TopologyReleases(env.Spec.Namespace).
+		Create(context.TODO(), topologyRelease, k8sV1.CreateOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	return created
+}
+
+func (opt *OptionsTopologyRelease) UpdateTopologyRelease(
+	env *jxV1.Environment,
+	topologyRelease *sdlc.TopologyRelease,
+) *sdlc.TopologyRelease {
+	updated, err := opt.LtClient.
+		TopologyreleaseV1beta1().
+		TopologyReleases(env.Spec.Namespace).
+		Update(context.TODO(), topologyRelease, k8sV1.UpdateOptions{})
+	if err != nil {
+		panic(err.Error())
+	}
+	return updated
 }
 
 func (opt *OptionsTopologyRelease) CombineAppReleases(
@@ -381,7 +410,7 @@ func (opt *OptionsTopologyRelease) AppChangeLog(appRelease AppRelease) (string, 
 	return string(releaseNotes), nil
 }
 
-func (opt *OptionsTopologyRelease) Publish(versionTag string, topologyChangelog string) string {
+func (opt *OptionsTopologyRelease) Publish(version *semver.Version, topologyChangelog string, envLog *logrus.Entry) string {
 	scmHelper := scmhelpers.Options{
 		Dir:       opt.HelmfileDir,
 		SourceURL: opt.GitUrl,
@@ -393,8 +422,8 @@ func (opt *OptionsTopologyRelease) Publish(versionTag string, topologyChangelog 
 	}
 
 	releaseInput := &scm.ReleaseInput{
-		Title:       "Topology release on " + opt.Environment + " - " + versionTag,
-		Tag:         versionTag,
+		Title:       "Topology release " + version.Original(),
+		Tag:         version.Original(),
 		Description: topologyChangelog,
 		Draft:       false,
 		Prerelease:  false,
@@ -406,7 +435,89 @@ func (opt *OptionsTopologyRelease) Publish(versionTag string, topologyChangelog 
 		panic(err.Error())
 	}
 
-	log.WithField("changelogUrl", rel.Link).Info("Release notes has been created")
+	envLog.WithField("changelogUrl", rel.Link).Info("Release notes has been created")
 
 	return rel.Link
+}
+
+func (opt *OptionsTopologyRelease) DetermineChanges(
+	env *jxV1.Environment,
+	prevEnv *jxV1.Environment,
+) (*semver.Version, *semver.Version, *semver.Version) {
+	var prevVersion *semver.Version = nil
+
+	prevReleases := opt.ListTopologyRelease(env)
+	if len(prevReleases) > 0 {
+		if len(prevReleases) > 1 {
+			sort.SliceStable(prevReleases, func(i, j int) bool {
+				v1 := semver.MustParse(prevReleases[i].Spec.Version)
+				v2 := semver.MustParse(prevReleases[j].Spec.Version)
+				return v1.GreaterThan(v2)
+			})
+		}
+		prevVersion = semver.MustParse(prevReleases[0].Spec.Version)
+	}
+
+	var prevEnvVersion *semver.Version = nil
+	if prevEnv != nil {
+		// look up for the same topology layout on previous environment
+		appVersions := opt.LoadAppReleases(env)
+		prevEnvReleases := opt.ListTopologyRelease(prevEnv)
+		sort.SliceStable(prevEnvReleases, func(i, j int) bool {
+			v1 := semver.MustParse(prevEnvReleases[i].Spec.Version)
+			v2 := semver.MustParse(prevEnvReleases[j].Spec.Version)
+			return v1.GreaterThan(v2)
+		})
+
+		for _, prevEnvRelease := range prevEnvReleases {
+			prevAppVersions := prevEnvRelease.Spec.Topology
+			sortAppVersionsByName(prevAppVersions)
+			if reflect.DeepEqual(prevAppVersions, appVersions) {
+				prevEnvVersion = semver.MustParse(prevEnvRelease.Spec.Version)
+				break
+			}
+		}
+	}
+
+	var nextVersion *semver.Version = nil
+	if prevEnv == nil {
+		// prevEnv doesn't exist - increment according to conventional commit rules
+		if prevVersion == nil {
+			nextVersion = semver.MustParse("v0.0.1-" + env.Name)
+		} else {
+			strategy := auto.Strategy{
+				SemanticStrategy: semantic.Strategy{
+					Dir:             opt.HelmfileDir,
+					StripPrerelease: false,
+				},
+			}
+			tmpVer1, err := prevVersion.SetPrerelease("")
+			if err != nil {
+				panic(err.Error())
+			}
+			tmpVer2, err := strategy.BumpVersion(tmpVer1)
+			if err != nil {
+				panic(err.Error())
+			}
+			tmpVer3, err := tmpVer2.SetPrerelease(env.Name)
+			if err != nil {
+				panic(err.Error())
+			}
+			nextVersion = &tmpVer3
+		}
+	} else {
+		if prevEnvVersion == nil {
+			// TODO: probably allow some kind of not-promoted releases
+			panic("Unable to determine previous topology release with the same application layout")
+		} else {
+			// prevEnv exists and prevEnvVersion exists - (promoted topology release) keep the same version but change `pre` suffix only
+			tmpNextVersion, err := prevEnvVersion.SetPrerelease(env.Name)
+			if err != nil {
+				panic(err.Error())
+			}
+			nextVersion = &tmpNextVersion
+		}
+	}
+
+	return nextVersion, prevVersion, prevEnvVersion
 }

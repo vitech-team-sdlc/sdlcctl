@@ -32,22 +32,6 @@ func tryLoadReleaseResource(resourceFilePath string) jxV1.Release {
 	return release
 }
 
-func findEnvironmentByName(envs []jxV1.Environment, environment string) jxV1.Environment {
-	idx := -1
-	for i, env := range envs {
-		if env.ObjectMeta.Name == environment {
-			idx = i
-			break
-		}
-	}
-
-	if idx == -1 {
-		panic("Unable to find environment: " + environment)
-	}
-
-	return envs[idx]
-}
-
 func determineTagRevision(client gitclient.Interface, gitUrl string, tag string) string {
 	gitDir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -105,10 +89,6 @@ func sortAppVersionsByName(apps []v1beta1.AppVersion) {
 		}
 		return apps[i].Name > apps[j].Name
 	})
-}
-
-func makeTopologyName(env *jxV1.Environment, versionTag string) string {
-	return fmt.Sprintf("%s-%s", env.Name, versionTag)
 }
 
 func sortAppReleasesByName(apps []AppRelease) {

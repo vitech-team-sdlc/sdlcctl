@@ -12,14 +12,14 @@ spec:
   - JSONPath: .spec.environment
     name: Environment
     type: string
-  - JSONPath: .metadata.namespace
-    name: Namespace
-    type: string
   - JSONPath: .spec.version
     name: Version
     type: string
-  - JSONPath: .spec.basedOnVersion
-    name: BasedOnVersion
+  - JSONPath: .spec.prevVersion
+    name: PrevVersion
+    type: string
+  - JSONPath: .spec.prevEnvVersion
+    name: PrevEnvVersion
     type: string
   - JSONPath: .spec.changelogURL
     name: ChangelogURL
@@ -55,7 +55,9 @@ spec:
               type: string
             version:
               type: string
-            basedOnVersion:
+            prevVersion:
+              type: string
+            prevEnvVersion:
               type: string
             changelogURL:
               type: string

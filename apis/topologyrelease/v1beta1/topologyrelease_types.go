@@ -24,7 +24,8 @@ import (
 type TopologyReleaseSpec struct {
 	Environment    string       `json:"environment,omitempty"`
 	Version        string       `json:"version,omitempty"`
-	BasedOnVersion string       `json:"basedOnVersion,omitempty"`
+	PrevVersion    string       `json:"prevVersion,omitempty"`
+	PrevEnvVersion string       `json:"prevEnvVersion,omitempty"`
 	ChangelogURL   string       `json:"changelogURL,omitempty"`
 	Topology       []AppVersion `json:"topology,omitempty"`
 }
@@ -41,9 +42,9 @@ type AppVersion struct {
 // +k8s:openapi-gen=true
 // TopologyRelease is the Schema for the topologyReleases API
 // +kubebuilder:printcolumn:name="Environment",type=string,JSONPath=`.spec.environment`
-// +kubebuilder:printcolumn:name="Namespace",type=string,JSONPath=`.metadata.namespace`
 // +kubebuilder:printcolumn:name="Version",type=string,JSONPath=`.spec.version`
-// +kubebuilder:printcolumn:name="BasedOnVersion",type=string,JSONPath=`.spec.basedOnVersion`
+// +kubebuilder:printcolumn:name="PrevVersion",type=string,JSONPath=`.spec.prevVersion`
+// +kubebuilder:printcolumn:name="PrevEnvVersion",type=string,JSONPath=`.spec.prevEnvVersion`
 // +kubebuilder:printcolumn:name="ReleaseNotes",type=string,JSONPath=`.spec.changelogURL`
 type TopologyRelease struct {
 	metav1.TypeMeta   `json:",inline"`
