@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	largetestv1beta1 "github.com/vitech-team/sdlcctl/client/clientset/versioned/typed/largetest/v1beta1"
+	topologyreleasev1beta1 "github.com/vitech-team/sdlcctl/client/clientset/versioned/typed/topologyrelease/v1beta1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -30,18 +31,25 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	LargetestV1beta1() largetestv1beta1.LargetestV1beta1Interface
+	TopologyreleaseV1beta1() topologyreleasev1beta1.TopologyreleaseV1beta1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	largetestV1beta1 *largetestv1beta1.LargetestV1beta1Client
+	largetestV1beta1       *largetestv1beta1.LargetestV1beta1Client
+	topologyreleaseV1beta1 *topologyreleasev1beta1.TopologyreleaseV1beta1Client
 }
 
 // LargetestV1beta1 retrieves the LargetestV1beta1Client
 func (c *Clientset) LargetestV1beta1() largetestv1beta1.LargetestV1beta1Interface {
 	return c.largetestV1beta1
+}
+
+// TopologyreleaseV1beta1 retrieves the TopologyreleaseV1beta1Client
+func (c *Clientset) TopologyreleaseV1beta1() topologyreleasev1beta1.TopologyreleaseV1beta1Interface {
+	return c.topologyreleaseV1beta1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -69,6 +77,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.topologyreleaseV1beta1, err = topologyreleasev1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -82,6 +94,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.largetestV1beta1 = largetestv1beta1.NewForConfigOrDie(c)
+	cs.topologyreleaseV1beta1 = topologyreleasev1beta1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -91,6 +104,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.largetestV1beta1 = largetestv1beta1.New(c)
+	cs.topologyreleaseV1beta1 = topologyreleasev1beta1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

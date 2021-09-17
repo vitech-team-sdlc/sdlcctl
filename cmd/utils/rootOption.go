@@ -8,7 +8,6 @@ import (
 )
 
 type Options struct {
-	Environment string
 	Helmfile    string
 	HelmfileDir string
 	GitUrl      string

@@ -31,7 +31,11 @@ func TestNewTopologyCmdTested(t *testing.T) {
 		"tested",
 		"--gitUrl", "https://github.com/vitech-team/test-sk-env.git",
 		"--hfd", "/Users/serhiykrupka/test-clone",
-		"--status", "ok", "--repo", "https://github.com", "--commit", "123", "--image", "gcr.io", "--report", "rep/ttt/",
+		"--status", "ok",
+		"--repo", "https://github.com",
+		"--commit", "123",
+		"--image", "gcr.io",
+		"--report", "rep/ttt/",
 	})
 
 	//o.HelmfileDir = "/Users/serhiykrupka/test-clone"

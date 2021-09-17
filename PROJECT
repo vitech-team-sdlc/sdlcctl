@@ -5,4 +5,7 @@ resources:
 - group: largetest
   kind: LargeTestExecution
   version: v1beta1
+- group: topologyrelease
+  kind: TopologyRelease
+  version: v1beta1
 version: "2"
