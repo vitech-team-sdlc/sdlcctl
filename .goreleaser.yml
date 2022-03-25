@@ -21,7 +21,6 @@ dockers:
   - dockerfile: Dockerfile
     image_templates:
       - "ghcr.io/vitech-team-sdlc/{{.ProjectName}}:{{ .Tag }}"
-    use_buildx: true
     build_flag_templates:
       - "--pull"
       - "--label=org.opencontainers.image.created={{.Date}}"
