@@ -20,7 +20,7 @@ checksum:
 dockers:
   - dockerfile: Dockerfile
     image_templates:
-      - "ghcr.io/vitech-team/{{.ProjectName}}:{{ .Tag }}"
+      - "ghcr.io/vitech-team-sdlc/{{.ProjectName}}:{{ .Tag }}"
     use_buildx: true
     build_flag_templates:
       - "--pull"
